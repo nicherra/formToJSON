@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Formulario Dinámico con Array</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl flex">
+      <!-- Columna izquierda (Vista JSON con botón de eliminación) -->
+      <div class="w-1/3 pr-4">
+        <h1 class="text-2xl font-bold text-blue-600 text-center">Vista JSON</h1>
+        <div class="mt-4 p-4 border border-gray-300 rounded-lg bg-gray-50">
+          <h2 class="text-lg font-medium text-gray-700">Vista Previa del JSON</h2>
+          <pre id="jsonPreview" class="text-sm text-gray-600 whitespace-pre-wrap"></pre>
+        </div>
+      </div>
+
+      <!-- Columna derecha (Formulario y Acciones centradas) -->
+      <div class="w-2/3 pl-4">
+        <h1 class="text-2xl font-bold text-blue-600 text-center">Formulario Dinámico</h1>
+        <form id="dynamicForm" class="mt-4 space-y-4"></form>
+        <button id="addItemBtn" class="mt-4 w-full bg-green-600 text-white py-2 rounded">Agregar Elemento</button>
+        <button id="submitBtn" class="mt-4 w-full bg-blue-600 text-white py-2 rounded">Exportar JSON</button>
+      </div>
+    </div>
+
+    <script>
+      let formDataArray = []; // Array para almacenar los datos del formulario
+
+      // 🔹 Función para obtener parámetros de la URL
+      function getParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get("form");
+      }
+
+      // 🔹 Función para parsear los parámetros
+      function parseFormParams(paramString) {
+        if (!paramString) return [];
+
+        const fields = [];
+        const parts = paramString.split(",");
+
+        parts.forEach((part) => {
+          const [key, type] = part.split(":");
+          if (key && type) {
+            fields.push({ name: key, type });
+          }
+        });
+
+        return fields;
+      }
+
+      // 🔹 Función para generar el formulario dinámico
+      function generateForm(fields) {
+        const form = document.getElementById("dynamicForm");
+        form.innerHTML = ""; // Limpiar el formulario
+
+        fields.forEach((field) => {
+          const label = document.createElement("label");
+          label.className = "block text-gray-700 font-medium";
+          label.innerText = field.name.charAt(0).toUpperCase() + field.name.slice(1).replace(/\./g, " → "); // Mayúscula y formateo
+
+          const input = document.createElement("input");
+
+          if (field.type === "bool" || field.type === "boolean") {
+            input.type = "checkbox";
+            input.name = field.name;
+            input.className =
+              "mt-1 w-6 h-6 rounded-md border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500";
+          } else {
+            input.type = field.type === "number" ? "number" : "text";
+            input.name = field.name;
+            input.className =
+              "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500";
+          }
+
+          form.appendChild(label);
+          form.appendChild(input);
+        });
+      }
+
+      // 🔹 Función para agregar un nuevo objeto al array
+      function addItem() {
+        const fields = parseFormParams(getParams());
+        const item = {};
+
+        // Recoger los datos de los inputs y almacenarlos en un objeto
+        document.querySelectorAll("#dynamicForm input").forEach((input) => {
+          if (input.type === "checkbox") {
+            item[input.name] = input.checked; // Guardar el estado del checkbox
+          } else {
+            item[input.name] = input.value;
+          }
+        });
+
+        formDataArray.push(item); // Añadir el nuevo objeto al array
+        console.log("Array de datos:", formDataArray);
+
+        // Limpiar el formulario para agregar otro elemento
+        generateForm(fields);
+
+        // Actualizar el visor de JSON
+        updateJsonPreview();
+      }
+
+      // 🔹 Función para eliminar un ítem
+      function deleteItem(index) {
+        formDataArray.splice(index, 1); // Eliminar el ítem del array
+        console.log("Array de datos después de eliminar:", formDataArray);
+
+        // Actualizar el visor de JSON
+        updateJsonPreview();
+      }
+
+      // 🔹 Función para exportar el array como un archivo JSON
+      function exportToJson() {
+        const jsonBlob = new Blob([JSON.stringify(formDataArray, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(jsonBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "formData.json";
+        a.click();
+      }
+
+      // 🔹 Función para actualizar el visor de JSON con botones de eliminación
+      function updateJsonPreview() {
+        const jsonPreview = document.getElementById("jsonPreview");
+        jsonPreview.innerHTML = ""; // Limpiar vista previa actual
+
+        formDataArray.forEach((item, index) => {
+          const itemPre = document.createElement("div");
+          itemPre.className = "text-sm text-gray-600 whitespace-pre-wrap";
+          itemPre.innerHTML = JSON.stringify(item, null, 2);
+
+          // Crear botón de eliminación
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "mt-2 bg-red-500 text-white py-1 px-2 rounded";
+          deleteBtn.innerText = "Eliminar";
+          deleteBtn.onclick = () => deleteItem(index);
+
+          // Insertar los datos y el botón de eliminación
+          jsonPreview.appendChild(itemPre);
+          jsonPreview.appendChild(deleteBtn);
+        });
+      }
+
+      // 🔹 Ejecutar funciones iniciales
+      const paramString = getParams();
+      generateForm(parseFormParams(paramString));
+
+      // 🔹 Evento de botón "Agregar Elemento"
+      document.getElementById("addItemBtn").addEventListener("click", addItem);
+
+      // 🔹 Evento de botón "Exportar JSON"
+      document.getElementById("submitBtn").addEventListener("click", exportToJson);
+    </script>
+  </body>
+</html>
